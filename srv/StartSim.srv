@@ -1,0 +1,5 @@
+int32 simDim
+int32 simType
+float64 simSlope
+float64 maxForce
+---

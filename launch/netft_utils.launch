@@ -1,0 +1,28 @@
+<launch>
+  
+  <!-- Non-standard joint names:
+       - Create a file [robot_moveit_config]/config/joint_names.yaml
+           controller_joint_names: [joint_1, joint_2, ... joint_N]
+       - Update with joint names for your robot (in order expected by rbt controller)
+       - and uncomment the following line: -->
+  <rosparam command="load" file="$(find sia5_moveit_config)/config/joint_names.yaml" />
+
+  <!-- load the robot_description parameter before launching ROS-I nodes -->
+  <include file="$(find sia5_moveit_config)/launch/planning_context_ft.launch">
+    <arg name="load_robot_description" value="true" />
+  </include>
+
+  <!-- run the robot interface driver so that we can see robot transforms -->
+  <include file="$(find agile_planet_driver)/launch/robot_interface.launch">
+    <arg name="robot_ip" value="192.168.1.101" />
+  </include>
+  
+  <!-- publish the robot state (tf transforms) -->
+  <param name="publish_frequency" value="50.0" type="double" />
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+
+  <node name="netft_node" pkg="netft_rdt_driver" type="netft_node" respawn="false" output="screen" args="192.168.1.84"/>
+
+  <node name="netft_force_utils" pkg="netft_utils" type="netft_utils" respawn="false" output="screen" />
+
+</launch>

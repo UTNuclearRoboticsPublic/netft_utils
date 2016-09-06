@@ -1,0 +1,4 @@
+float64 mass
+float64 COM
+---
+bool success
