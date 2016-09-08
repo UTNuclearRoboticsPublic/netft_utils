@@ -10,7 +10,6 @@
 #include "geometry_msgs/TwistStamped.h"
 #include "ros/console.h"
 #include "netft_utils_lean.h"
-#include <string.h>
 
 // Author: Andy Zelenak, 2016
 // Test the C++ interface for the ATI force/torque sensor with a Netbox.
@@ -33,8 +32,10 @@ int main(int argc, char **argv)
   // Connect and bias the ft sensor
   NetftUtilsLean* fti = new NetftUtilsLean(&n);
   fti->setFTAddress("192.168.1.85");
-  // Rate to match motion commands to robot. This controls the loop rate.
-  fti->initialize(1/ftSleep, "right_ur5_ee_link", "right_ur5_ee_link");
+  // Adjust the data acquisition rate and set the World and sensor frames, respectively
+  fti->initialize(1/ftSleep, "base_link", "ee_link");
+  
+  // Set max and min force/torque readings
   fti->setMax(80.0, 8.0, 60.0, 6.0);
   std::future<bool> ftThread;
   ftThread = std::async(std::launch::async, &NetftUtilsLean::run, fti);

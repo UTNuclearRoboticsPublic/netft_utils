@@ -4,8 +4,9 @@
   <version>1.0.0</version>
   <description>The netft_utils package contains utilities to help with managing force torque data</description>
 
-  <!-- One maintainer tag required, multiple allowed, one person per tag --> 
   <author email="alexvs@utexas.edu">alexvs</author>
+  <author>Derek King</author>
+  <author>Andy Zelenak</author>
 
   <maintainer email="andyz@utexas.edu">andyz</maintainer>
 
