@@ -7,10 +7,15 @@ set(GCC_COVERAGE_LINK_FLAGS    "-Wformat-security")
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS}" )
 set( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ${GCC_COVERAGE_LINK_FLAGS}" )
 
+# Use C++11
+set(CMAKE_CXX_FLAGS "-std=c++0x ${CMAKE_CXX_FLAGS}")
+
 find_package(catkin REQUIRED COMPONENTS 
   roscpp
   diagnostic_updater 
-  diagnostic_msgs geometry_msgs
+  diagnostic_msgs
+  geometry_msgs
+  std_msgs
 )
 
 find_package(Boost REQUIRED COMPONENTS 
@@ -20,6 +25,11 @@ find_package(Boost REQUIRED COMPONENTS
 )
 
 find_package(catkin REQUIRED COMPONENTS std_msgs tf message_generation)
+
+include_directories(
+  include ${Boost_INCLUDE_DIRS} 
+  ${catkin_INCLUDE_DIRS}
+)
 
 ## Gen## Generate messages in the 'msg' folder
 add_message_files(
@@ -43,31 +53,12 @@ generate_messages(DEPENDENCIES std_msgs geometry_msgs)
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES netft_utils_lean
-  CATKIN_DEPENDS message_runtime netft_rdt_driver lpfilter
+  LIBRARIES netft_utils_lean lpfilter
+  CATKIN_DEPENDS message_runtime lpfilter
   DEPENDS system_lib
 )
 
-catkin_package(
-  INCLUDE_DIRS include
-  LIBRARIES lpfilter
-)
-
-include_directories(
-  include ${Boost_INCLUDE_DIRS} 
-  ${catkin_INCLUDE_DIRS}
-)
- 
-add_executable(netft_utils src/netft_utils.cpp)
-
-add_dependencies(netft_utils netft_utils_generate_messages_cpp)
-add_dependencies(netft_utils lpfilter)
-
-target_link_libraries(netft_utils
-    ${catkin_LIBRARIES}
-    lpfilter
-    netft_rdt_driver
-)
+link_directories(${catkin_LIBRARY_DIRS})
 
 add_library(netft_rdt_driver src/netft_rdt_driver.cpp)
 add_library(lpfilter src/lpfilter.cpp)
@@ -75,6 +66,28 @@ add_library(netft_utils_lean src/netft_utils_lean.cpp)
   
 target_link_libraries(netft_rdt_driver ${Boost_LIBRARIES})
 target_link_libraries(netft_rdt_driver ${catkin_LIBRARIES})
+ 
+add_executable(netft_utils src/netft_utils.cpp)
+add_executable(netft_utils_sim src/netft_utils_sim.cpp)
+add_executable(netft_utils_cpp_test src/netft_utils_cpp_test.cpp)
+
+add_dependencies(netft_utils netft_utils_generate_messages_cpp)
+add_dependencies(netft_utils lpfilter)
+add_dependencies(netft_utils_sim netft_utils_generate_messages_cpp)
+add_dependencies(netft_utils_sim lpfilter)
+add_dependencies(netft_utils_cpp_test ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} netft_utils)
+
+target_link_libraries(netft_utils
+    ${catkin_LIBRARIES}
+    lpfilter
+)
+
+target_link_libraries(netft_utils_sim
+    ${catkin_LIBRARIES}
+    lpfilter
+)
+
+target_link_libraries(netft_utils_cpp_test ${catkin_LIBRARIES} netft_utils_lean lpfilter netft_rdt_driver)
 
 add_dependencies(
   ${PROJECT_NAME} ${catkin_EXPORTED_TARGETS} 
