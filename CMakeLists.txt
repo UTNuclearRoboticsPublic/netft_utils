@@ -24,18 +24,15 @@ find_package(Boost REQUIRED COMPONENTS
   program_options
 )
 
-find_package(catkin REQUIRED COMPONENTS std_msgs tf message_generation)
+find_package(catkin REQUIRED COMPONENTS genmsg std_msgs tf message_generation)
 
 include_directories(
   include ${Boost_INCLUDE_DIRS} 
   ${catkin_INCLUDE_DIRS}
 )
 
-## Gen## Generate messages in the 'msg' folder
-add_message_files(
-  FILES
-  Cancel.msg
-)
+## Generate messages in the 'msg' folder
+add_message_files( FILES Cancel.msg )
 
 add_service_files(
     FILES
@@ -62,6 +59,8 @@ link_directories(${catkin_LIBRARY_DIRS})
 add_library(netft_rdt_driver src/netft_rdt_driver.cpp)
 add_library(lpfilter src/lpfilter.cpp)
 add_library(netft_utils_lean src/netft_utils_lean.cpp)
+
+add_dependencies(netft_utils_lean netft_utils_generate_messages_cpp)
   
 target_link_libraries(netft_rdt_driver ${Boost_LIBRARIES})
 target_link_libraries(netft_rdt_driver ${catkin_LIBRARIES})
