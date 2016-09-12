@@ -61,18 +61,16 @@ add_library(lpfilter src/lpfilter.cpp)
 add_library(netft_utils_lean src/netft_utils_lean.cpp)
 
 add_dependencies(netft_utils_lean netft_utils_generate_messages_cpp)
+target_link_libraries(netft_utils_lean lpfilter netft_rdt_driver)
   
-target_link_libraries(netft_rdt_driver ${Boost_LIBRARIES})
-target_link_libraries(netft_rdt_driver ${catkin_LIBRARIES})
+target_link_libraries(netft_rdt_driver ${Boost_LIBRARIES} ${catkin_LIBRARIES})
  
 add_executable(netft_utils src/netft_utils.cpp)
 add_executable(netft_utils_sim src/netft_utils_sim.cpp)
 add_executable(netft_utils_cpp_test src/netft_utils_cpp_test.cpp)
 
-add_dependencies(netft_utils netft_utils_generate_messages_cpp)
-add_dependencies(netft_utils lpfilter)
-add_dependencies(netft_utils_sim netft_utils_generate_messages_cpp)
-add_dependencies(netft_utils_sim lpfilter)
+add_dependencies(netft_utils netft_utils_generate_messages_cpp lpfilter)
+add_dependencies(netft_utils_sim netft_utils_generate_messages_cpp lpfilter)
 add_dependencies(netft_utils_cpp_test ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS} netft_utils)
 
 target_link_libraries(netft_utils
