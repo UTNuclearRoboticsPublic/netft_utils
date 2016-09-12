@@ -10,9 +10,9 @@
 
   <maintainer email="andyz@utexas.edu">andyz</maintainer>
 
-  <license>See License.txt</license>
+  <url type="website">http://wiki.ros.org/netft_utils</url>
 
-  <!-- <url type="website">http://ros.org/wiki/netft_turtle</url> -->
+  <license>See License.txt</license>
 
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>roscpp</build_depend>
