@@ -263,6 +263,8 @@ void NetftUtils::netftCallback(const geometry_msgs::WrenchStamped::ConstPtr& dat
   raw_data_tool.wrench.torque.y = tempData.at(4);
   raw_data_tool.wrench.torque.z = tempData.at(5);
   
+  // Gravity compensation is not well-tested
+  /*
   // Calculate current gravity bias
   tf::Vector3 sensor_COM;
   sensor_COM.setX(0.0);
@@ -298,6 +300,7 @@ void NetftUtils::netftCallback(const geometry_msgs::WrenchStamped::ConstPtr& dat
   gravity_bias.wrench.torque.x = moments.getX();
   gravity_bias.wrench.torque.y = moments.getY();
   gravity_bias.wrench.torque.z = moments.getZ();
+  */
   
   // Copy in new netft data in tool frame and transform to world frame
   transformFrame(raw_data_tool, raw_data_world, 'w');
@@ -308,7 +311,9 @@ void NetftUtils::netftCallback(const geometry_msgs::WrenchStamped::ConstPtr& dat
   
   // Add bias and apply threshold to get transformed data
   copyWrench(raw_data_world, tf_data_world, world_bias);
-  copyWrench(tf_data_world, tf_data_world, gravity_bias);
+  
+  // Gravity compensation is not well-tested
+  // copyWrench(tf_data_world, tf_data_world, gravity_bias);
   
   // Transform to tool frame
   transformFrame(tf_data_world, tf_data_tool, 't');
