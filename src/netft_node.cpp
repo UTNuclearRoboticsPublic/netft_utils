@@ -99,10 +99,10 @@ int main(int argc, char **argv)
   ros::Publisher ready_pub;
   std_msgs::Bool is_ready;
   ready_pub = nh.advertise<std_msgs::Bool>("netft_ready", 1);
-  std::auto_ptr<netft_rdt_driver::NetFTRDTDriver> netft;
+  std::shared_ptr<netft_rdt_driver::NetFTRDTDriver> netft;
   try
   {
-    netft = std::auto_ptr<netft_rdt_driver::NetFTRDTDriver>(new netft_rdt_driver::NetFTRDTDriver(address));
+    netft = std::shared_ptr<netft_rdt_driver::NetFTRDTDriver>(new netft_rdt_driver::NetFTRDTDriver(address));
     is_ready.data = true;
     ready_pub.publish(is_ready);
   }
