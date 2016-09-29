@@ -76,20 +76,18 @@ NetftUtils::NetftUtils(ros::NodeHandle nh) :
   deltaTFilter(0.0),
   cutoffFrequency(0.0),
   newFilter(false),
-  sensor_mass(0.0),
-  sensor_COM_z(0.0),
-  tool_mass(0.0),
-  tool_COM_x(0.0),
-  tool_COM_y(0.0),
-  tool_COM_z(0.0),
   isBiased(false),
+  isGravityBiased(false),
   isNewBias(false),
+  isNewGravityBias(false),
   cancel_count(MAX_CANCEL),
   cancel_wait(MAX_WAIT),
   forceMaxB(10.0),
   torqueMaxB(0.8),
   forceMaxU(50.0),
-  torqueMaxU(5.0)
+  torqueMaxU(5.0),
+  payloadMass(0.),
+  payloadLeverArm(0.)
 {
 }
 
@@ -127,14 +125,13 @@ void NetftUtils::initialize()
   netft_cancel_pub = n.advertise<netft_utils::Cancel>("cancel", 100000);
 
   //Advertise bias and threshold services
-  bias_service = n.advertiseService("bias", &NetftUtils::biasSensor, this);
+  bias_service = n.advertiseService("bias", &NetftUtils::fixedOrientationBias, this);
+  gravity_comp_service = n.advertiseService("gravity_comp", &NetftUtils::compensateForGravity, this);
   set_max_service = n.advertiseService("set_max_values", &NetftUtils::setMax, this);
   theshold_service = n.advertiseService("set_threshold", &NetftUtils::setThreshold, this);
   weight_bias_service = n.advertiseService("set_weight_bias", &NetftUtils::setWeightBias, this);
   get_weight_service = n.advertiseService("get_weight", &NetftUtils::getWeight, this);
   filter_service = n.advertiseService("filter", &NetftUtils::setFilter, this);
-  //set_tool_service = n.advertiseService("set_netft_tool_data", set_tool_data);
-  //world_data_service = n.advertiseService("get_netft_raw_world_data", get_world_data);
 }
 
 void NetftUtils::setUserInput(std::string world, std::string ft, double force, double torque)
@@ -238,6 +235,7 @@ void NetftUtils::transformFrame(geometry_msgs::WrenchStamped in_data, geometry_m
   out_data.wrench.torque.z = tempT.getZ();
 }
 
+// Runs when a new datapoint comes in
 void NetftUtils::netftCallback(const geometry_msgs::WrenchStamped::ConstPtr& data)
 {
   // Filter data
@@ -263,60 +261,42 @@ void NetftUtils::netftCallback(const geometry_msgs::WrenchStamped::ConstPtr& dat
   raw_data_tool.wrench.torque.y = tempData.at(4);
   raw_data_tool.wrench.torque.z = tempData.at(5);
   
-  // Gravity compensation is not well-tested
-  /*
-  // Calculate current gravity bias
-  tf::Vector3 sensor_COM;
-  sensor_COM.setX(0.0);
-  sensor_COM.setY(0.0);
-  sensor_COM.setZ(sensor_COM_z);
-  tf::Vector3 tool_COM;
-  sensor_COM.setZ(tool_COM_x);
-  sensor_COM.setZ(tool_COM_y);
-  sensor_COM.setZ(tool_COM_z);
-  tf::Vector3 arm;
-  double total_mass = tool_mass + sensor_mass;
-  arm = (sensor_COM * sensor_mass + tool_COM * tool_mass)/total_mass;
-  tf::Vector3 arm_world = ft_to_world * arm;
-  tf::Vector3 gravity;
-  gravity.setX(0.0);
-  gravity.setY(0.0);
-  gravity.setZ(-9.81);
-  tf::Vector3 moments;
-  if(total_mass!=0.0)
-  {
-    moments = arm_world.cross(total_mass * gravity);
-  }
-  else
-  {
-    moments.setX(0.0);
-    moments.setY(0.0);
-    moments.setZ(0.0);
-  }  
-
-  gravity_bias.wrench.force.x = 0.0;
-  gravity_bias.wrench.force.y = 0.0;
-  gravity_bias.wrench.force.z = total_mass * -9.81;
-  gravity_bias.wrench.torque.x = moments.getX();
-  gravity_bias.wrench.torque.y = moments.getY();
-  gravity_bias.wrench.torque.z = moments.getZ();
-  */
-  
   // Copy in new netft data in tool frame and transform to world frame
   transformFrame(raw_data_tool, raw_data_world, 'w');
   
-  // Get tool bias in world frame
-  geometry_msgs::WrenchStamped world_bias;
-  transformFrame(bias, world_bias, 'w');
-  
-  // Add bias and apply threshold to get transformed data
-  copyWrench(raw_data_world, tf_data_world, world_bias);
-  
-  // Gravity compensation is not well-tested
-  // copyWrench(tf_data_world, tf_data_world, gravity_bias);
+  if (isBiased) // Apply the bias for a static sensor frame
+  {
+    // Get tool bias in world frame
+    geometry_msgs::WrenchStamped world_bias;
+    transformFrame(bias, world_bias, 'w');
+    // Add bias and apply threshold to get transformed data
+    copyWrench(raw_data_world, tf_data_world, world_bias);
+  }
   
   // Transform to tool frame
   transformFrame(tf_data_world, tf_data_tool, 't');
+  
+  if (isGravityBiased) // Compensate for gravity. World Z-axis must be up
+  {
+    // Gravity force = world Z-force
+    double gravForce = -tf_data_world.wrench.force.z;
+
+    // Gravity moment = (payloadLeverArm) cross (payload force)  <== all in the sensor frame. Need to convert to world later
+    // Since it's assumed that the CoM of the payload is on the sensor's central axis, this calculation is simplified.
+    double gravMomentX = -payloadLeverArm*tf_data_tool.wrench.force.y;
+    double gravMomentY = payloadLeverArm*tf_data_tool.wrench.force.x;
+    
+    // Subtract the gravity wrench from the previously-calculated wrench in the tool frame
+    tf_data_tool.wrench.torque.x = tf_data_tool.wrench.torque.x - gravMomentX;
+    tf_data_tool.wrench.torque.y = tf_data_tool.wrench.torque.y - gravMomentY;
+    
+    // Convert to world to account for the gravity force
+    transformFrame(tf_data_tool, tf_data_world, 'w');
+    tf_data_world.wrench.force.z = tf_data_world.wrench.force.z - gravForce;
+    
+    // tf_data_world now accounts for gravity completely. Convert back to the tool frame to make that data available
+    transformFrame(tf_data_world, tf_data_tool, 't');
+  }
                   
   // Apply thresholds
   applyThreshold(tf_data_world.wrench.force.x, threshold.wrench.force.x);
@@ -333,30 +313,63 @@ void NetftUtils::netftCallback(const geometry_msgs::WrenchStamped::ConstPtr& dat
   applyThreshold(tf_data_tool.wrench.torque.z, threshold.wrench.torque.z);
   //ROS_INFO_STREAM("Callback time: " << tf_data_tool.header.stamp.toSec()-ros::Time::now().toSec());
 }                 
-                  
-bool NetftUtils::biasSensor(netft_utils::SetBias::Request &req, netft_utils::SetBias::Response &res)
+
+// Set the readings from the sensor to zero at this instant and continue to apply the bias on future readings.
+// This doesn't account for gravity.
+// Useful when the sensor's orientation won't change.
+// Run this method when the sensor is stationary to avoid inertial effects.
+bool NetftUtils::fixedOrientationBias(netft_utils::SetBias::Request &req, netft_utils::SetBias::Response &res)
 {                 
   if(req.toBias)  
   {               
-    copyWrench(raw_data_tool, bias, zero_wrench);
-    geometry_msgs::WrenchStamped gravity_bias_tool;
-    transformFrame(gravity_bias, gravity_bias_tool, 't');
-    copyWrench(bias, bias, gravity_bias_tool);
-    if(req.forceMax >= 0.0001)
+    copyWrench(raw_data_tool, bias, zero_wrench); // Store the current wrench readings in the 'bias' variable, to be applied hereafter
+    if(req.forceMax >= 0.0001) // if forceMax was specified and > 0
       forceMaxB = req.forceMax;
     if(req.torqueMax >= 0.0001)
-      torqueMaxB = req.torqueMax;
-    isNewBias = true;
+      torqueMaxB = req.torqueMax; // if torqueMax was specified and > 0
+    
+    isNewBias = false;
+    isBiased = true;
+  }               
+  else            
+  {               
+    copyWrench(zero_wrench, bias, zero_wrench); // Clear the stored bias if the argument was false
+  }               
+
+  res.success = true;
+                  
+  return true;    
+}
+
+// Set the readings from the sensor to zero at this instant.
+// Calculate the payload's mass and center of mass so gravity can be compensated for, even as the sensor changes orientation.
+// It's assumed that the payload's center of mass is located on the sensor's central access.
+// Run this method when the sensor is stationary to avoid inertial effects.
+bool NetftUtils::compensateForGravity(netft_utils::SetBias::Request &req, netft_utils::SetBias::Response &res)
+{
+
+  if(req.toBias)
+  {               
+    // Get the mass of the payload
+    payloadMass = (raw_data_tool.wrench.force.x+raw_data_tool.wrench.force.y+raw_data_tool.wrench.force.z)/9.81;
+  
+    // Calculate the z-coordinate of the payload's center of mass, in the sensor frame.
+    // It's assumed that the x- and y-coordinates are zero.
+    // This is a lever arm.
+    payloadLeverArm = raw_data_tool.wrench.torque.y/raw_data_tool.wrench.force.x;
+    
+    isNewGravityBias = true;
+    isGravityBiased = true; 
   }               
   else            
   {               
     copyWrench(zero_wrench, bias, zero_wrench);
   }               
-  isBiased = req.toBias;
+
   res.success = true;
                   
   return true;    
-}   
+}  
 
 bool NetftUtils::setFilter(netft_utils::SetFilter::Request &req, netft_utils::SetFilter::Response &res)
 {                 
@@ -384,7 +397,7 @@ bool NetftUtils::setMax(netft_utils::SetMax::Request &req, netft_utils::SetMax::
   
   res.success = true;             
   return true;    
-}  
+}
 
 bool NetftUtils::setWeightBias(netft_utils::SetBias::Request &req, netft_utils::SetBias::Response &res)
 {                 
@@ -468,20 +481,5 @@ void NetftUtils::checkMaxForce()
     cancel_count = MAX_CANCEL;
     cancel_wait = MAX_WAIT;
   }
-}
-//bool set_tool_data(netft_utils::SetToolData::Request &req, netft_utils::SetToolData::Response &res)
-//{               
-//    tool_mass = req.mass;
-//    tool_COM = req.COM;
-//                
-//    res.success = true;
-//                
-//    return true;
-//}               
-                  
-//bool get_world_data(netft_utils::GetWorldData::Request &req, netft_utils::GetWorldData::Response &res)
-//{                 
-//  res.data = raw_data_world;
-//  return true;    
-//}                 
+}               
                   

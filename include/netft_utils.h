@@ -48,7 +48,6 @@ private:
  
   // Wrenches used to hold force/torque and bias data
   geometry_msgs::WrenchStamped bias;               // Wrench containing the current bias data in tool frame
-  geometry_msgs::WrenchStamped gravity_bias;       // Wrench containing the bias due to gravity in world frame
   geometry_msgs::WrenchStamped weight_bias;        // Wrench containing the bias at a measurement pose (to measure the weight)
   geometry_msgs::WrenchStamped raw_data_world;     // Wrench containing the current raw data from the netft sensor transformed into the world frame
   geometry_msgs::WrenchStamped raw_data_tool;      // Wrench containing the current raw data from the netft sensor in the tool frame
@@ -57,18 +56,13 @@ private:
   geometry_msgs::WrenchStamped zero_wrench;        // Wrench of all zeros for convenience
   geometry_msgs::WrenchStamped threshold;          // Wrench containing thresholds
   
-  // For implementing removal of FT due to tool
-  //For force torque sensor (this is a wild guess)	
-  double sensor_mass;//0.29;//0.955234;	          // Mass of the tool in kg
-  double sensor_COM_z;//0.003042;                  // Distance from ft frame to center of mass of tool in meters
-  //For gripper
-  double tool_mass;//2.25;	                        // Mass of the tool in kg
-  double tool_COM_x;                               // Distance from ft frame to center of mass of tool in meters
-  double tool_COM_y;//-0.008;                      // Distance from ft frame to center of mass of tool in meters
-  double tool_COM_z;//0.065;                       // Distance from ft frame to center of mass of tool in meters
+  double payloadMass;				   // Used in gravity compensation
+  double payloadLeverArm;			   // Used in gravity compensation. The z-coordinate to payload CoM (in sensor's raw frame)
   
   bool isBiased;                                   // True if sensor is biased
   bool isNewBias;                                  // True if sensor was biased this pass
+  bool isNewGravityBias;			   // True if gravity compensation was applied this pass
+  bool isGravityBiased;				   // True if gravity is compensated
   
   // Variables used to monitor FT violation and send a cancel move message
   netft_utils::Cancel cancel_msg;
@@ -90,17 +84,36 @@ private:
   ros::Publisher netft_tool_data_pub;
   ros::Publisher netft_cancel_pub;
   
+  ////////////////
   // ROS services
+  ////////////////
   ros::ServiceServer bias_service;
+  ros::ServiceServer gravity_comp_service;
   ros::ServiceServer set_max_service;
   ros::ServiceServer theshold_service;
   ros::ServiceServer weight_bias_service;
   ros::ServiceServer get_weight_service;
   ros::ServiceServer filter_service;
 
+  ////////////////////
   // Callback methods
+  ////////////////////
+  
+  // Runs when a new datapoint comes in
   void netftCallback(const geometry_msgs::WrenchStamped::ConstPtr& data);
-  bool biasSensor(netft_utils::SetBias::Request &req, netft_utils::SetBias::Response &res);
+  
+  // Set the readings from the sensor to zero at this instant and continue to apply the bias on future readings.
+  // This doesn't account for gravity i.e. it will not change if the sensor's orientation changes.
+  // Run this method when the sensor is stationary to avoid inertial effects.
+  bool fixedOrientationBias(netft_utils::SetBias::Request &req, netft_utils::SetBias::Response &res);
+  
+  // Set the readings from the sensor to zero at this instant.
+  // Calculate the payload's mass and center of mass so gravity can be compensated for, even as the sensor changes orientation.
+  // It's assumed that the payload's center of mass is located on the sensor's central access.
+  // Run this method when the sensor is stationary to avoid inertial effects.
+  // It assumes the Z-axis of the World tf frame is up.
+  bool compensateForGravity(netft_utils::SetBias::Request &req, netft_utils::SetBias::Response &res);
+  
   bool setMax(netft_utils::SetMax::Request &req, netft_utils::SetMax::Response &res);
   bool setWeightBias(netft_utils::SetBias::Request &req, netft_utils::SetBias::Response &res);
   bool getWeight(netft_utils::GetDouble::Request &req, netft_utils::GetDouble::Response &res);
