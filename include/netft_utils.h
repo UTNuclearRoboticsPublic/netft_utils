@@ -56,7 +56,7 @@ private:
   geometry_msgs::WrenchStamped zero_wrench;        // Wrench of all zeros for convenience
   geometry_msgs::WrenchStamped threshold;          // Wrench containing thresholds
   
-  double payloadMass;				   // Used in gravity compensation
+  double payloadWeight;				   // Used in gravity compensation
   double payloadLeverArm;			   // Used in gravity compensation. The z-coordinate to payload CoM (in sensor's raw frame)
   
   bool isBiased;                                   // True if sensor is biased

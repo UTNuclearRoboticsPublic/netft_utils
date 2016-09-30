@@ -86,7 +86,7 @@ NetftUtils::NetftUtils(ros::NodeHandle nh) :
   torqueMaxB(0.8),
   forceMaxU(50.0),
   torqueMaxU(5.0),
-  payloadMass(0.),
+  payloadWeight(0.),
   payloadLeverArm(0.)
 {
 }
@@ -266,35 +266,37 @@ void NetftUtils::netftCallback(const geometry_msgs::WrenchStamped::ConstPtr& dat
   
   if (isBiased) // Apply the bias for a static sensor frame
   {
+    ROS_INFO_STREAM("appyling the constant-orientation bias");
     // Get tool bias in world frame
     geometry_msgs::WrenchStamped world_bias;
     transformFrame(bias, world_bias, 'w');
     // Add bias and apply threshold to get transformed data
     copyWrench(raw_data_world, tf_data_world, world_bias);
   }
-  
-  // Transform to tool frame
-  transformFrame(tf_data_world, tf_data_tool, 't');
-  
-  if (isGravityBiased) // Compensate for gravity. World Z-axis must be up
+  else // Just pass the data straight through
   {
-    // Gravity force = world Z-force
-    double gravForce = -tf_data_world.wrench.force.z;
-
+    copyWrench(raw_data_world, tf_data_world, zero_wrench);
+    copyWrench(raw_data_tool, tf_data_tool, zero_wrench);
+  }
+  
+  if (isGravityBiased) // Compensate for gravity. Assumes world Z-axis is up
+  {
+    ROS_INFO_STREAM("applying gravity bias");
     // Gravity moment = (payloadLeverArm) cross (payload force)  <== all in the sensor frame. Need to convert to world later
     // Since it's assumed that the CoM of the payload is on the sensor's central axis, this calculation is simplified.
     double gravMomentX = -payloadLeverArm*tf_data_tool.wrench.force.y;
     double gravMomentY = payloadLeverArm*tf_data_tool.wrench.force.x;
     
-    // Subtract the gravity wrench from the previously-calculated wrench in the tool frame
+    // Subtract the gravity torques from the previously-calculated wrench in the tool frame
     tf_data_tool.wrench.torque.x = tf_data_tool.wrench.torque.x - gravMomentX;
     tf_data_tool.wrench.torque.y = tf_data_tool.wrench.torque.y - gravMomentY;
     
-    // Convert to world to account for the gravity force
+    // Convert to world to account for the gravity force. Assumes world-Z is up.
+    ROS_INFO_STREAM("gravity force in the world Z axis: "<< payloadWeight);
     transformFrame(tf_data_tool, tf_data_world, 'w');
-    tf_data_world.wrench.force.z = tf_data_world.wrench.force.z - gravForce;
+    tf_data_world.wrench.force.z = tf_data_world.wrench.force.z - payloadWeight;
     
-    // tf_data_world now accounts for gravity completely. Convert back to the tool frame to make that data available
+    // tf_data_world now accounts for gravity completely. Convert back to the tool frame to make that data available, too
     transformFrame(tf_data_world, tf_data_tool, 't');
   }
                   
@@ -350,8 +352,8 @@ bool NetftUtils::compensateForGravity(netft_utils::SetBias::Request &req, netft_
 
   if(req.toBias)
   {               
-    // Get the mass of the payload
-    payloadMass = (raw_data_tool.wrench.force.x+raw_data_tool.wrench.force.y+raw_data_tool.wrench.force.z)/9.81;
+    // Get the weight of the payload. Assumes the world Z axis is up.
+    payloadWeight = raw_data_world.wrench.force.z;
   
     // Calculate the z-coordinate of the payload's center of mass, in the sensor frame.
     // It's assumed that the x- and y-coordinates are zero.
