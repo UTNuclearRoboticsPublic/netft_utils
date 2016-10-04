@@ -2,7 +2,7 @@
 <package>
   <name>netft_utils</name>
   <version>1.0.0</version>
-  <description>A C++ class and a ROS node for ATI force/torque sensors that are connected to a Netbox.</description>
+  <description>A C++ class and a ROS node for ATI force/torque sensors that are connected to a Netbox. Includes gravity compensation and transformations.</description>
 
   <author email="alexvs@utexas.edu">alexvs</author>
   <author>Derek King</author>
