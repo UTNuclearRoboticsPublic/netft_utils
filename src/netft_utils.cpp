@@ -266,7 +266,6 @@ void NetftUtils::netftCallback(const geometry_msgs::WrenchStamped::ConstPtr& dat
   
   if (isBiased) // Apply the bias for a static sensor frame
   {
-    ROS_INFO_STREAM("appyling the constant-orientation bias");
     // Get tool bias in world frame
     geometry_msgs::WrenchStamped world_bias;
     transformFrame(bias, world_bias, 'w');
@@ -281,22 +280,22 @@ void NetftUtils::netftCallback(const geometry_msgs::WrenchStamped::ConstPtr& dat
   
   if (isGravityBiased) // Compensate for gravity. Assumes world Z-axis is up
   {
-    // Gravity moment = (payloadLeverArm) cross (payload force)  <== all in the sensor frame. Need to convert to world later
-    // Since it's assumed that the CoM of the payload is on the sensor's central axis, this calculation is simplified.
-    double gravMomentX = -payloadLeverArm*tf_data_tool.wrench.force.y;
-    double gravMomentY = payloadLeverArm*tf_data_tool.wrench.force.x;
+      // Gravity moment = (payloadLeverArm) cross (payload force)  <== all in the sensor frame. Need to convert to world later
+      // Since it's assumed that the CoM of the payload is on the sensor's central axis, this calculation is simplified.
+      double gravMomentX = -payloadLeverArm*tf_data_tool.wrench.force.y;
+      double gravMomentY = payloadLeverArm*tf_data_tool.wrench.force.x;
     
-    // Subtract the gravity torques from the previously-calculated wrench in the tool frame
-    tf_data_tool.wrench.torque.x = tf_data_tool.wrench.torque.x - gravMomentX;
-    tf_data_tool.wrench.torque.y = tf_data_tool.wrench.torque.y - gravMomentY;
+      // Subtract the gravity torques from the previously-calculated wrench in the tool frame
+      tf_data_tool.wrench.torque.x = tf_data_tool.wrench.torque.x - gravMomentX;
+      tf_data_tool.wrench.torque.y = tf_data_tool.wrench.torque.y - gravMomentY;
     
-    // Convert to world to account for the gravity force. Assumes world-Z is up.
-    //ROS_INFO_STREAM("gravity force in the world Z axis: "<< payloadWeight);
-    transformFrame(tf_data_tool, tf_data_world, 'w');
-    tf_data_world.wrench.force.z = tf_data_world.wrench.force.z - payloadWeight;
+      // Convert to world to account for the gravity force. Assumes world-Z is up.
+      //ROS_INFO_STREAM("gravity force in the world Z axis: "<< payloadWeight);
+      transformFrame(tf_data_tool, tf_data_world, 'w');
+      tf_data_world.wrench.force.z = tf_data_world.wrench.force.z - payloadWeight;
     
-    // tf_data_world now accounts for gravity completely. Convert back to the tool frame to make that data available, too
-    transformFrame(tf_data_world, tf_data_tool, 't');
+      // tf_data_world now accounts for gravity completely. Convert back to the tool frame to make that data available, too
+      transformFrame(tf_data_world, tf_data_tool, 't');
   }
                   
   // Apply thresholds
@@ -319,18 +318,28 @@ void NetftUtils::netftCallback(const geometry_msgs::WrenchStamped::ConstPtr& dat
 // This doesn't account for gravity.
 // Useful when the sensor's orientation won't change.
 // Run this method when the sensor is stationary to avoid inertial effects.
+// Cannot bias the sensor if gravity compensation has already been applied.
 bool NetftUtils::fixedOrientationBias(netft_utils::SetBias::Request &req, netft_utils::SetBias::Response &res)
 {                 
   if(req.toBias)  
-  {               
-    copyWrench(raw_data_tool, bias, zero_wrench); // Store the current wrench readings in the 'bias' variable, to be applied hereafter
-    if(req.forceMax >= 0.0001) // if forceMax was specified and > 0
-      forceMaxB = req.forceMax;
-    if(req.torqueMax >= 0.0001)
-      torqueMaxB = req.torqueMax; // if torqueMax was specified and > 0
+  {           
+    if (isGravityBiased) // Cannot bias the sensor if gravity compensation has been applied
+    {
+      ROS_ERROR("Cannot bias the sensor if gravity compensation has been applied.");
+      res.success = false;
+      return false;  
+    }
+    else
+    {
+      copyWrench(raw_data_tool, bias, zero_wrench); // Store the current wrench readings in the 'bias' variable, to be applied hereafter
+      if(req.forceMax >= 0.0001) // if forceMax was specified and > 0
+	forceMaxB = req.forceMax;
+      if(req.torqueMax >= 0.0001)
+	torqueMaxB = req.torqueMax; // if torqueMax was specified and > 0
     
-    isNewBias = false;
-    isBiased = true;
+      isNewBias = true;
+      isBiased = true;
+    }
   }               
   else            
   {               
@@ -345,30 +354,35 @@ bool NetftUtils::fixedOrientationBias(netft_utils::SetBias::Request &req, netft_
 // Calculate the payload's mass and center of mass so gravity can be compensated for, even as the sensor changes orientation.
 // It's assumed that the payload's center of mass is located on the sensor's central access.
 // Run this method when the sensor is stationary to avoid inertial effects.
+// Cannot do gravity compensation if sensor has already been biased.
 bool NetftUtils::compensateForGravity(netft_utils::SetBias::Request &req, netft_utils::SetBias::Response &res)
 {
 
   if(req.toBias)
-  {               
-    // Get the weight of the payload. Assumes the world Z axis is up.
-    payloadWeight = raw_data_world.wrench.force.z;
+  {  
+    if (isBiased)
+    {
+      ROS_ERROR("Cannot compensate for gravity if the sensor has already been biased, i.e. useful data was wiped out");
+      res.success = false;
+      return false;  
+    }
+    else  // Cannot compensate for gravity if the sensor has already been biased, i.e. useful data was wiped out 
+    {
+      // Get the weight of the payload. Assumes the world Z axis is up.
+      payloadWeight = raw_data_world.wrench.force.z;
   
-    // Calculate the z-coordinate of the payload's center of mass, in the sensor frame.
-    // It's assumed that the x- and y-coordinates are zero.
-    // This is a lever arm.
-    payloadLeverArm = raw_data_tool.wrench.torque.y/raw_data_tool.wrench.force.x;
+      // Calculate the z-coordinate of the payload's center of mass, in the sensor frame.
+      // It's assumed that the x- and y-coordinates are zero.
+      // This is a lever arm.
+      payloadLeverArm = raw_data_tool.wrench.torque.y/raw_data_tool.wrench.force.x;
     
-    isNewGravityBias = true;
-    isGravityBiased = true; 
-  }               
-  else            
-  {               
-    copyWrench(zero_wrench, bias, zero_wrench);
-  }               
-
-  res.success = true;
-                  
-  return true;    
+      isNewGravityBias = true;
+      isGravityBiased = true;
+    }
+  }
+  
+  res.success = true;     
+  return true;
 }  
 
 bool NetftUtils::setFilter(netft_utils::SetFilter::Request &req, netft_utils::SetFilter::Response &res)
