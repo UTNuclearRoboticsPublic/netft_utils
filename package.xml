@@ -2,7 +2,7 @@
 <package>
   <name>netft_utils</name>
   <version>1.0.0</version>
-  <description>The netft_utils package contains utilities to help with managing force torque data</description>
+  <description>A C++ class and a ROS node for ATI force/torque sensors that are connected to a Netbox.</description>
 
   <author email="alexvs@utexas.edu">alexvs</author>
   <author>Derek King</author>
