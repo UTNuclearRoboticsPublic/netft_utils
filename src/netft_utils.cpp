@@ -11,7 +11,7 @@ Additionally, redistribution and use in source and binary forms, with or without
 
 THIS SOFTWARE IS PROVIDED BY LOS ALAMOS NATIONAL SECURITY, LLC AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL LOS ALAMOS NATIONAL SECURITY, LLC OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Author: Alex von Sternberg
+Authors: Alex von Sternberg, Andy Zelenak
 */
 
 #include "netft_utils.h"
@@ -281,7 +281,6 @@ void NetftUtils::netftCallback(const geometry_msgs::WrenchStamped::ConstPtr& dat
   
   if (isGravityBiased) // Compensate for gravity. Assumes world Z-axis is up
   {
-    ROS_INFO_STREAM("applying gravity bias");
     // Gravity moment = (payloadLeverArm) cross (payload force)  <== all in the sensor frame. Need to convert to world later
     // Since it's assumed that the CoM of the payload is on the sensor's central axis, this calculation is simplified.
     double gravMomentX = -payloadLeverArm*tf_data_tool.wrench.force.y;
@@ -292,7 +291,7 @@ void NetftUtils::netftCallback(const geometry_msgs::WrenchStamped::ConstPtr& dat
     tf_data_tool.wrench.torque.y = tf_data_tool.wrench.torque.y - gravMomentY;
     
     // Convert to world to account for the gravity force. Assumes world-Z is up.
-    ROS_INFO_STREAM("gravity force in the world Z axis: "<< payloadWeight);
+    //ROS_INFO_STREAM("gravity force in the world Z axis: "<< payloadWeight);
     transformFrame(tf_data_tool, tf_data_world, 'w');
     tf_data_world.wrench.force.z = tf_data_world.wrench.force.z - payloadWeight;
     
@@ -343,7 +342,6 @@ bool NetftUtils::fixedOrientationBias(netft_utils::SetBias::Request &req, netft_
   return true;    
 }
 
-// Set the readings from the sensor to zero at this instant.
 // Calculate the payload's mass and center of mass so gravity can be compensated for, even as the sensor changes orientation.
 // It's assumed that the payload's center of mass is located on the sensor's central access.
 // Run this method when the sensor is stationary to avoid inertial effects.
