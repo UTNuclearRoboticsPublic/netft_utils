@@ -264,20 +264,6 @@ void NetftUtils::netftCallback(const geometry_msgs::WrenchStamped::ConstPtr& dat
   // Copy in new netft data in tool frame and transform to world frame
   transformFrame(raw_data_tool, raw_data_world, 'w');
   
-  if (isBiased) // Apply the bias for a static sensor frame
-  {
-    // Get tool bias in world frame
-    geometry_msgs::WrenchStamped world_bias;
-    transformFrame(bias, world_bias, 'w');
-    // Add bias and apply threshold to get transformed data
-    copyWrench(raw_data_world, tf_data_world, world_bias);
-  }
-  else // Just pass the data straight through
-  {
-    copyWrench(raw_data_world, tf_data_world, zero_wrench);
-    copyWrench(raw_data_tool, tf_data_tool, zero_wrench);
-  }
-  
   if (isGravityBiased) // Compensate for gravity. Assumes world Z-axis is up
   {
       // Gravity moment = (payloadLeverArm) cross (payload force)  <== all in the sensor frame. Need to convert to world later
@@ -296,6 +282,20 @@ void NetftUtils::netftCallback(const geometry_msgs::WrenchStamped::ConstPtr& dat
     
       // tf_data_world now accounts for gravity completely. Convert back to the tool frame to make that data available, too
       transformFrame(tf_data_world, tf_data_tool, 't');
+  }
+  
+  if (isBiased) // Apply the bias for a static sensor frame
+  {
+    // Get tool bias in world frame
+    geometry_msgs::WrenchStamped world_bias;
+    transformFrame(bias, world_bias, 'w');
+    // Add bias and apply threshold to get transformed data
+    copyWrench(raw_data_world, tf_data_world, world_bias);
+  }
+  else // Just pass the data straight through
+  {
+    copyWrench(raw_data_world, tf_data_world, zero_wrench);
+    copyWrench(raw_data_tool, tf_data_tool, zero_wrench);
   }
                   
   // Apply thresholds
@@ -323,23 +323,14 @@ bool NetftUtils::fixedOrientationBias(netft_utils::SetBias::Request &req, netft_
 {                 
   if(req.toBias)  
   {           
-    if (isGravityBiased) // Cannot bias the sensor if gravity compensation has been applied
-    {
-      ROS_ERROR("Cannot bias the sensor if gravity compensation has been applied.");
-      res.success = false;
-      return false;  
-    }
-    else
-    {
-      copyWrench(raw_data_tool, bias, zero_wrench); // Store the current wrench readings in the 'bias' variable, to be applied hereafter
-      if(req.forceMax >= 0.0001) // if forceMax was specified and > 0
-	forceMaxB = req.forceMax;
-      if(req.torqueMax >= 0.0001)
-	torqueMaxB = req.torqueMax; // if torqueMax was specified and > 0
+    copyWrench(raw_data_tool, bias, zero_wrench); // Store the current wrench readings in the 'bias' variable, to be applied hereafter
+    if(req.forceMax >= 0.0001) // if forceMax was specified and > 0
+      forceMaxB = req.forceMax;
+    if(req.torqueMax >= 0.0001)
+      torqueMaxB = req.torqueMax; // if torqueMax was specified and > 0
     
-      isNewBias = true;
-      isBiased = true;
-    }
+    isNewBias = true;
+    isBiased = true;
   }               
   else            
   {               
