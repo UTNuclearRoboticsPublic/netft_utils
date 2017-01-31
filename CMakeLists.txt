@@ -51,7 +51,7 @@ generate_messages(DEPENDENCIES std_msgs geometry_msgs)
 catkin_package(
   INCLUDE_DIRS include
   CATKIN_DEPENDS message_runtime
-  LIBRARIES netft_utils_lean
+  LIBRARIES netft_utils_lean lpfilter
   DEPENDS
 )
 
