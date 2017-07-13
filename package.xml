@@ -4,11 +4,11 @@
   <version>1.0.1</version>
   <description>C++ class and ROS node for ATI force/torque sensors connected to a Netbox. Includes gravity compensation and transformations.</description>
 
-  <author email="alexvs@utexas.edu">alexvs</author>
+  <author email="alexvs@utexas.edu">Alex von Sternberg</author>
   <author>Derek King</author>
   <author>Andy Zelenak</author>
 
-  <maintainer email="andyz@utexas.edu">andyz</maintainer>
+  <maintainer email="andyz@utexas.edu">Andy Zelenak</maintainer>
 
   <url type="website">http://wiki.ros.org/netft_utils</url>
 
