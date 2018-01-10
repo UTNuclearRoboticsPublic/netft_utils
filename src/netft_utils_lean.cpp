@@ -5,9 +5,9 @@ All rights reserved.
 Copyright 2016. Los Alamos National Security, LLC. This software was produced under U.S. Government contract DE-AC52-06NA25396 for Los Alamos National Laboratory (LANL), which is operated by Los Alamos National Security, LLC for the U.S. Department of Energy. The U.S. Government has rights to use, reproduce, and distribute this software.  NEITHER THE GOVERNMENT NOR LOS ALAMOS NATIONAL SECURITY, LLC MAKES ANY WARRANTY, EXPRESS OR IMPLIED, OR ASSUMES ANY LIABILITY FOR THE USE OF THIS SOFTWARE.  If software is modified to produce derivative works, such modified software should be clearly marked, so as not to confuse it with the version available from LANL.
 
 Additionally, redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
-1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer. 
-2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution. 
-3. Neither the name of Los Alamos National Security, LLC, Los Alamos National Laboratory, LANL, the U.S. Government, nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission. 
+1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+3. Neither the name of Los Alamos National Security, LLC, Los Alamos National Laboratory, LANL, the U.S. Government, nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
 
 THIS SOFTWARE IS PROVIDED BY LOS ALAMOS NATIONAL SECURITY, LLC AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL LOS ALAMOS NATIONAL SECURITY, LLC OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
@@ -64,10 +64,10 @@ bool NetftUtilsLean::initialize(double rate, std::string world, std::string ft, 
   }
   else
   {
-    ROS_ERROR_STREAM("Cycle rate should positive");
+    ROS_ERROR_STREAM("Cycle rate should be positive");
     return false;
   }
-  
+
   // Set up access to netft data
   if(!ftTopic.empty())
   {
@@ -91,8 +91,7 @@ bool NetftUtilsLean::initialize(double rate, std::string world, std::string ft, 
       ROS_ERROR_STREAM("Can not initialize FT, must set topic or address first.");
       return false;
   }
-    
-  
+
   //Zero out the zero wrench
   zero_wrench.wrench.force.x = 0.0;
   zero_wrench.wrench.force.y = 0.0;
@@ -109,10 +108,10 @@ bool NetftUtilsLean::initialize(double rate, std::string world, std::string ft, 
 
   //Publish on the /cancel topic. Queue up to 100000 data points
   netft_cancel_pub = n->advertise<netft_utils::Cancel>("/netft/cancel", 100000);
-  
+
   if(DEBUG_DATA)
     data_pub = n->advertise<geometry_msgs::WrenchStamped>("/netft/netft_data", 100000);
-  
+
   isInit = true;
   return true;
 }
@@ -124,28 +123,28 @@ bool NetftUtilsLean::run()
     ROS_ERROR_STREAM("Cannot run before initialization is successful.");
     return false;
   }
-  
+
   isActive = true;
-  
+
   toUpdate = true;
   toMonitor = true;
-  
+
   //Spin off update thread
   updateThread = std::async(std::launch::async, &NetftUtilsLean::update, this);
-  
+
   //Spin off thread to monitor netft data
   if(!ftAddress.empty())
   {
     monitorThread = std::async(std::launch::async, &NetftUtilsLean::monitorData, this);
   }
-  
+
   //Join threads
   if(!ftAddress.empty())
   {
     monitorThread.get();
   }
   updateThread.get();
-  
+
   isActive = false;
   return true;
 }
@@ -272,7 +271,7 @@ bool NetftUtilsLean::update()
       lpExists = true;
       newFilter = false;
     }
-    
+
     // Look up transform from ft to world frame
     tf::StampedTransform tempTransform;
     try
@@ -284,18 +283,18 @@ bool NetftUtilsLean::update()
     {
       ROS_ERROR("%s",ex.what());
     }
-   
+
     // Set translation to zero before updating value
     tempTransform.setOrigin(tf::Vector3(0.0,0.0,0.0));
     ft_to_world = tempTransform;
     waitingForTransform = false;
-   
+
     checkMaxForce();
-   
+
     // Publish cancel_msg
     netft_cancel_pub.publish( cancel_msg );
     r.sleep();
-  } 
+  }
   return true;
 }
 
@@ -340,7 +339,7 @@ void NetftUtilsLean::transformFrame(geometry_msgs::WrenchStamped in_data, geomet
       out_data.header.frame_id = ft_frame;
       tempF = ft_to_world.inverse() * tempF;
       tempT = ft_to_world.inverse() * tempT;
-  }	
+  }
   out_data.header.stamp = in_data.header.stamp;
   out_data.wrench.force.x = tempF.getX();
   out_data.wrench.force.y = tempF.getY();
@@ -373,11 +372,11 @@ void NetftUtilsLean::netftCallback(const geometry_msgs::WrenchStamped& data)
     tempData.at(4) = data.wrench.torque.y;
     tempData.at(5) = data.wrench.torque.z;
   }
-  
+
   if(isFilterOn && !newFilter)
     lp->update(tempData,tempData);
-  
-  // Copy tool frame data. 
+
+  // Copy tool frame data.
   raw_data_tool.header.stamp = data.header.stamp;
   raw_data_tool.header.frame_id = ft_frame;
   raw_data_tool.wrench.force.x = tempData.at(0);
@@ -386,13 +385,13 @@ void NetftUtilsLean::netftCallback(const geometry_msgs::WrenchStamped& data)
   raw_data_tool.wrench.torque.x = tempData.at(3);
   raw_data_tool.wrench.torque.y = tempData.at(4);
   raw_data_tool.wrench.torque.z = tempData.at(5);
-  
+
   // Apply bias
-  copyWrench(raw_data_tool, tf_data_tool, bias); 
-  
+  copyWrench(raw_data_tool, tf_data_tool, bias);
+
   // Copy in new netft data in tool frame and transform to world frame
   transformFrame(tf_data_tool, tf_data_world, 'w');
-  
+
   // Apply thresholds
   applyThreshold(tf_data_world.wrench.force.x, threshold.wrench.force.x);
   applyThreshold(tf_data_world.wrench.force.y, threshold.wrench.force.y);
@@ -406,33 +405,33 @@ void NetftUtilsLean::netftCallback(const geometry_msgs::WrenchStamped& data)
   applyThreshold(tf_data_tool.wrench.torque.x, threshold.wrench.torque.x);
   applyThreshold(tf_data_tool.wrench.torque.y, threshold.wrench.torque.y);
   applyThreshold(tf_data_tool.wrench.torque.z, threshold.wrench.torque.z);
-  
+
   // Publish data for debugging
   if(DEBUG_DATA)
     data_pub.publish(tf_data_tool);
   //ROS_INFO_STREAM("Callback time: " << tf_data_tool.header.stamp.toSec()-ros::Time::now().toSec());
-}                 
-                  
+}
+
 bool NetftUtilsLean::biasSensor(bool toBias)
-{                 
-  if(toBias)  
-  {               
+{
+  if(toBias)
+  {
     if(!hasData)
     {
       geometry_msgs::WrenchStamped data;
       if(!ftTopic.empty())
       {
-	ros::Time startTime = ros::Time::now();
-	while(ros::Time::now().toSec()-startTime.toSec() < 0.1 && !hasData)
-	{
-	  ros::Duration(0.01).sleep();
-	}
-	if(hasData)
-	{
+        ros::Time startTime = ros::Time::now();
+        while(ros::Time::now().toSec()-startTime.toSec() < 0.1 && !hasData)
+        {
+          ros::Duration(0.01).sleep();
+        }
+        if(hasData)
+        {
           data = raw_topic_data;
-	}
-	else
-	{
+        }
+        else
+        {
           ROS_ERROR("Bias sensor failed.");
           return false;
         }
@@ -448,8 +447,8 @@ bool NetftUtilsLean::biasSensor(bool toBias)
           ROS_ERROR("Bias sensor failed.");
           return false;
         }
-      }           
-      // Copy tool frame data. 
+      }
+      // Copy tool frame data.
       raw_data_tool.header.stamp = data.header.stamp;
       raw_data_tool.header.frame_id = ft_frame;
       raw_data_tool.wrench.force.x = -data.wrench.force.x;
@@ -461,34 +460,34 @@ bool NetftUtilsLean::biasSensor(bool toBias)
     }
     copyWrench(raw_data_tool, bias, zero_wrench);
     isNewBias = true;
-  }               
-  else            
-  {               
+  }
+  else
+  {
     copyWrench(zero_wrench, bias, zero_wrench);
-  }               
+  }
   isBiased = toBias;
-  return true;    
-}   
+  return true;
+}
 
 bool NetftUtilsLean::setFilter(bool toFilter, double deltaT, double cutoffFreq)
-{                 
-  if(toFilter)  
+{
+  if(toFilter)
   {
     newFilter = true;
     isFilterOn = true;
     deltaTFilter = deltaT;
     cutoffFrequency = cutoffFreq;
-  }               
-  else            
-  {               
+  }
+  else
+  {
     isFilterOn = false;
-  }               
-  
-  return true;    
-}  
+  }
+
+  return true;
+}
 
 bool NetftUtilsLean::setMax(double fMaxU, double tMaxU, double fMaxB, double tMaxB)
-{                 
+{
   if(fMaxU >= 0.0001)
   {
     forceMaxU = fMaxU;
@@ -502,18 +501,18 @@ bool NetftUtilsLean::setMax(double fMaxU, double tMaxU, double fMaxB, double tMa
     ROS_ERROR_STREAM("All maximum FT values must be positive.");
     return false;
   }
-}  
+}
 
 bool NetftUtilsLean::setThreshold(double fThresh, double tThresh)
-{                 
+{
   threshold.wrench.force.x = fThresh;
   threshold.wrench.force.y = fThresh;
   threshold.wrench.force.z = fThresh;
   threshold.wrench.torque.x = tThresh;
   threshold.wrench.torque.y = tThresh;
   threshold.wrench.torque.z = tThresh;
-                  
-  return true;    
+
+  return true;
 }
 
 void NetftUtilsLean::checkMaxForce()
@@ -598,4 +597,4 @@ bool NetftUtilsLean::isRunning()
 {
   return isActive;
 }
-                  
+
