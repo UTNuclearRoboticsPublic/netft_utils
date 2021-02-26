@@ -10,24 +10,24 @@ set( CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} ${GCC_COVERAGE_LINK_FLAG
 # Use C++11
 set(CMAKE_CXX_FLAGS "-std=c++0x ${CMAKE_CXX_FLAGS}")
 
-find_package(catkin REQUIRED COMPONENTS 
+find_package(catkin REQUIRED COMPONENTS
   roscpp
-  diagnostic_updater 
+  diagnostic_updater
   diagnostic_msgs
   geometry_msgs
   std_msgs
 )
 
-find_package(Boost REQUIRED COMPONENTS 
-  system 
-  thread 
+find_package(Boost REQUIRED COMPONENTS
+  system
+  thread
   program_options
 )
 
 find_package(catkin REQUIRED COMPONENTS genmsg std_msgs tf message_generation)
 
 include_directories(
-  include ${Boost_INCLUDE_DIRS} 
+  include ${Boost_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
 )
 
@@ -63,9 +63,9 @@ add_library(netft_utils_lean src/netft_utils_lean.cpp)
 
 add_dependencies(netft_utils_lean netft_utils_generate_messages_cpp)
 target_link_libraries(netft_utils_lean lpfilter netft_rdt_driver)
-  
+
 target_link_libraries(netft_rdt_driver ${Boost_LIBRARIES} ${catkin_LIBRARIES})
- 
+
 add_executable(netft_utils src/netft_utils.cpp)
 add_executable(netft_utils_sim src/netft_utils_sim.cpp)
 add_executable(netft_utils_cpp_test src/netft_utils_cpp_test.cpp)
@@ -92,3 +92,21 @@ target_link_libraries(netft_node netft_rdt_driver)
 target_link_libraries(netft_node ${Boost_LIBRARIES})
 target_link_libraries(netft_node ${catkin_LIBRARIES})
 
+install(TARGETS
+  netft_node
+  netft_utils
+  netft_utils_sim
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+install(TARGETS
+  netft_rdt_driver
+  lpfilter
+  netft_utils_lean
+  DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+)
+install(DIRECTORY include/
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+)
+install(DIRECTORY launch
+	DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)
