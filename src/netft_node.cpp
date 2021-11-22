@@ -59,6 +59,7 @@ int main(int argc, char **argv)
 
   float pub_rate_hz;
   string address;
+  string frame_id;
 
   po::options_description desc("Options");
   desc.add_options()
@@ -66,10 +67,12 @@ int main(int argc, char **argv)
     ("rate", po::value<float>(&pub_rate_hz)->default_value(500.0), "set publish rate (in hertz)")
     ("wrench", "publish older Wrench message type instead of WrenchStamped")
     ("address", po::value<string>(&address), "IP address of NetFT box")
+    ("frame_id", po::value<string>(&frame_id)->default_value("base_link"), "frame_id for Wrench msgs")
     ;
      
   po::positional_options_description p;
   p.add("address",  1);
+  p.add("frame_id",  1);
 
   po::variables_map vm;
   po::store(po::command_line_parser(argc, argv).options(desc).positional(p).run(), vm);
@@ -102,7 +105,7 @@ int main(int argc, char **argv)
   std::shared_ptr<netft_rdt_driver::NetFTRDTDriver> netft;
   try
   {
-    netft = std::shared_ptr<netft_rdt_driver::NetFTRDTDriver>(new netft_rdt_driver::NetFTRDTDriver(address));
+    netft = std::shared_ptr<netft_rdt_driver::NetFTRDTDriver>(new netft_rdt_driver::NetFTRDTDriver(address, frame_id));
     is_ready.data = true;
     ready_pub.publish(is_ready);
   }

@@ -53,6 +53,8 @@ public:
   // Start receiving data from NetFT device
   NetFTRDTDriver(const std::string &address);
 
+  NetFTRDTDriver(const std::string &address, const std::string &frame_id);
+
   ~NetFTRDTDriver();
 
   //! Get newest RDT data from netFT device
@@ -73,6 +75,7 @@ protected:
 
   enum {RDT_PORT=49152};
   std::string address_;
+  std::string frame_id_;
 
   boost::asio::io_service io_service_;
   boost::asio::ip::udp::socket socket_;
