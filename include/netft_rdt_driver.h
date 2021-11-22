@@ -53,7 +53,10 @@ public:
   // Start receiving data from NetFT device
   NetFTRDTDriver(const std::string &address);
 
-  NetFTRDTDriver(const std::string &address, const std::string &frame_id);
+  NetFTRDTDriver(const std::string &address,
+                 const std::string &frame_id,
+                 const int32_t counts_per_force,
+                 const int32_t counts_per_torque);
 
   ~NetFTRDTDriver();
 

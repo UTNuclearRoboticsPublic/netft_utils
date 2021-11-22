@@ -60,6 +60,8 @@ int main(int argc, char **argv)
   float pub_rate_hz;
   string address;
   string frame_id;
+  int32_t counts_per_force;
+  int32_t counts_per_torque;
 
   po::options_description desc("Options");
   desc.add_options()
@@ -68,6 +70,8 @@ int main(int argc, char **argv)
     ("wrench", "publish older Wrench message type instead of WrenchStamped")
     ("address", po::value<string>(&address), "IP address of NetFT box")
     ("frame_id", po::value<string>(&frame_id)->default_value("base_link"), "frame_id for Wrench msgs")
+    ("counts_per_force", po::value<int32_t>(&counts_per_force)->default_value(1000000), "Counts per force as listed by sensor webserver")
+    ("counts_per_torque", po::value<int32_t>(&counts_per_torque)->default_value(1000000), "Counts per torque as listed by sensor webserver")
     ;
      
   po::positional_options_description p;
@@ -105,7 +109,8 @@ int main(int argc, char **argv)
   std::shared_ptr<netft_rdt_driver::NetFTRDTDriver> netft;
   try
   {
-    netft = std::shared_ptr<netft_rdt_driver::NetFTRDTDriver>(new netft_rdt_driver::NetFTRDTDriver(address, frame_id));
+    netft = std::shared_ptr<netft_rdt_driver::NetFTRDTDriver>(
+      new netft_rdt_driver::NetFTRDTDriver(address, frame_id, counts_per_force, counts_per_torque));
     is_ready.data = true;
     ready_pub.publish(is_ready);
   }

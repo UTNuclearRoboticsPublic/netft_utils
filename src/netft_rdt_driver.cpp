@@ -126,11 +126,17 @@ void RDTCommand::pack(uint8_t *buffer) const
 
 
 NetFTRDTDriver::NetFTRDTDriver(const std::string &address) :
-  NetFTRDTDriver(address, "base_link") // defaulting frame_id to "base_link"
+  NetFTRDTDriver(address,
+                 "base_link",  // defaulting frame_id to "base_link"
+                 1000000, // defaulting counts_per_force to 1000000
+                 1000000) // defaulting counts_per_torque to 1000000
 {
 }
 
-NetFTRDTDriver::NetFTRDTDriver(const std::string &address, const std::string &frame_id) :
+NetFTRDTDriver::NetFTRDTDriver(const std::string &address,
+                               const std::string &frame_id,
+                               const int32_t counts_per_force,
+                               const int32_t counts_per_torque) :
   address_(address),
   frame_id_(frame_id),
   socket_(io_service_),
@@ -154,10 +160,8 @@ NetFTRDTDriver::NetFTRDTDriver(const std::string &address, const std::string &fr
   // Force/Sclae is based on counts per force/torque value from device
   // these value are manually read from device webserver, but in future they 
   // may be collected using http get requests
-  static const double counts_per_force = 1000000;  
-  static const double counts_per_torque = 1000000;
-  force_scale_ = 1.0 / counts_per_force;
-  torque_scale_ = 1.0 / counts_per_torque;
+  force_scale_ = 1.0 / (double)counts_per_force;
+  torque_scale_ = 1.0 / (double)counts_per_torque;
 
   // Start receive thread  
   recv_thread_ = boost::thread(&NetFTRDTDriver::recvThreadFunc, this);
