@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.0.2)
 project(netft_utils)
 
 set(GCC_COVERAGE_COMPILE_FLAGS "-g -Wno-enum-compare -std=c++11 -Wenum-compare -Wformat-security")
@@ -16,6 +16,9 @@ find_package(catkin REQUIRED COMPONENTS
   diagnostic_msgs
   geometry_msgs
   std_msgs
+  genmsg
+  tf
+  message_generation
 )
 
 find_package(Boost REQUIRED COMPONENTS
@@ -23,8 +26,6 @@ find_package(Boost REQUIRED COMPONENTS
   thread
   program_options
 )
-
-find_package(catkin REQUIRED COMPONENTS genmsg std_msgs tf message_generation)
 
 include_directories(
   include ${Boost_INCLUDE_DIRS}
