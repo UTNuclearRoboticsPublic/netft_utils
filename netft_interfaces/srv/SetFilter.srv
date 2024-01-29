@@ -1,0 +1,4 @@
+bool filter
+float64 t
+float64 cutoff_frequency
+---
