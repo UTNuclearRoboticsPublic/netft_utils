@@ -76,7 +76,14 @@ protected:
   //! Asks NetFT to start streaming data.
   void startStreaming(void);
 
-  enum {RDT_PORT=49152};
+  // Gets the calibration info via synchronous TCP request, and sets
+  // the force_scale_ and torque_scale_ appropriately
+  bool readCalibrationInformation(const std::string & address);
+
+  enum {
+    RDT_PORT=49152,
+    TCP_PORT=49151
+  };
   std::string address_;
 
   boost::asio::io_service io_service_;
