@@ -116,6 +116,147 @@ namespace netft_rdt_driver {
         buffer[7] = (sample_count_ >> 0) & 0xFF;
     }
 
+    struct CalibrationInfoResponse {
+        uint16_t header_;
+        uint8_t force_units_;
+        uint8_t torque_units_;
+        uint32_t counts_per_force_;
+        uint32_t counts_per_torque_;
+        uint16_t scale_factors_[6];
+
+        // Possible values for force units
+        enum {
+            FORCE_UNIT_POUND = 1,
+            FORCE_UNIT_NEWTON = 2,
+            FORCE_UNIT_KILOPOUND = 3,
+            FORCE_UNIT_KILONEWTON = 4,
+            FORCE_UNIT_KILOGRAM = 5,
+            FORCE_UNIT_GRAM = 6,
+        };
+
+        // Possible values for torque units
+        enum {
+            TORQUE_UNIT_POUND_INCH = 1,
+            TORQUE_UNIT_POUND_FOOT = 2,
+            TORQUE_UNIT_NEWTON_METER = 3,
+            TORQUE_UNIT_NEWTON_MILLIMETER = 4,
+            TORQUE_UNIT_KILOGRAM_CENTIMETER = 5,
+            TORQUE_UNIT_KILONEWTON_METER = 6,
+        };
+
+        enum { CALIB_INFO_RESPONSE_SIZE = 24 };
+        void unpack(const uint8_t* buffer);
+        static uint32_t unpack32(const uint8_t* buffer);
+        static uint16_t unpack16(const uint8_t* buffer);
+        static uint8_t unpack8(const uint8_t* buffer);
+        std::string getForceUnitString();
+        std::string getTorqueUnitString();
+    };
+
+    uint32_t CalibrationInfoResponse::unpack32(const uint8_t* buffer) {
+        return
+            (static_cast<uint32_t>(buffer[0]) << 24) |
+            (static_cast<uint32_t>(buffer[1]) << 16) |
+            (static_cast<uint32_t>(buffer[2]) << 8) |
+            (static_cast<uint32_t>(buffer[3]) << 0);
+    }
+
+    uint16_t CalibrationInfoResponse::unpack16(const uint8_t* buffer) {
+        return
+            (static_cast<uint16_t>(buffer[0]) << 8) |
+            (static_cast<uint16_t>(buffer[1]) << 0);
+    }
+
+    uint8_t CalibrationInfoResponse::unpack8(const uint8_t* buffer) {
+        return
+            (static_cast<uint8_t>(buffer[0]) << 0);
+    }
+
+    void CalibrationInfoResponse::unpack(const uint8_t* buffer) {
+        header_ = unpack16(buffer + 0);
+        force_units_ = unpack8(buffer + 2);
+        torque_units_ = unpack8(buffer + 3);
+        counts_per_force_ = unpack32(buffer + 4);
+        counts_per_torque_ = unpack32(buffer + 8);
+        scale_factors_[0] = unpack16(buffer + 12);
+        scale_factors_[1] = unpack16(buffer + 14);
+        scale_factors_[2] = unpack16(buffer + 16);
+        scale_factors_[3] = unpack16(buffer + 18);
+        scale_factors_[4] = unpack16(buffer + 20);
+        scale_factors_[5] = unpack16(buffer + 22);
+    }
+
+    std::string CalibrationInfoResponse::getForceUnitString()
+    {
+        switch (force_units_)
+        {
+        case FORCE_UNIT_POUND:
+            return "Pounds";
+        case FORCE_UNIT_NEWTON:
+            return "Newtons";
+        case FORCE_UNIT_KILOPOUND:
+            return "Kilopounds";
+        case FORCE_UNIT_KILONEWTON:
+            return "Kilonewtons";
+        case FORCE_UNIT_KILOGRAM:
+            return "Kilograms";
+        case FORCE_UNIT_GRAM:
+            return "Grams";
+        default:
+            return "Unknown units";
+        }
+    }
+
+    std::string CalibrationInfoResponse::getTorqueUnitString()
+    {
+        switch (torque_units_)
+        {
+        case TORQUE_UNIT_POUND_INCH:
+            return "Inch-Pounds";
+        case TORQUE_UNIT_POUND_FOOT:
+            return "Pound-Feet";
+        case TORQUE_UNIT_NEWTON_METER:
+            return "Newton-Meters";
+        case TORQUE_UNIT_NEWTON_MILLIMETER:
+            return "Newton-Millimeters";
+        case TORQUE_UNIT_KILOGRAM_CENTIMETER:
+            return "Kilogram-Centimeters";
+        case TORQUE_UNIT_KILONEWTON_METER:
+            return "Kilonewton-Meters";
+        default:
+            return "Unknown units";
+        }
+    }
+
+    struct CalibrationInfoCommand {
+        uint8_t command_{};
+        uint8_t reserved_[19] = {0};
+
+        CalibrationInfoCommand() : command_(READCALINFO) {
+        }
+
+        // Possible values for command_
+        enum {
+            READFT = 0,
+            READCALINFO = 1,
+            WRITETRANSFORM = 2,
+            WRITECONDITION = 3,
+        };
+
+        enum { CALIB_INFO_COMMAND_SIZE = 20 };
+
+        //!Packet structure into buffer for network transport
+        //  Buffer should be CALIB_INFO_COMMAND_SIZE
+        void pack(uint8_t* buffer) const;
+    };
+
+    void CalibrationInfoCommand::pack(uint8_t* buffer) const {
+        buffer[0] = command_;
+        for (size_t i=1;i < CALIB_INFO_COMMAND_SIZE ; ++i)
+        {
+            buffer[i] = 0x0;
+        }
+    }
 
     NetFTRDTDriver::NetFTRDTDriver(const std::string& address) : Node("netft_rdt_driver"),
                                                                  address_(address),
@@ -135,14 +276,12 @@ namespace netft_rdt_driver {
         socket_.open(udp::v4());
         socket_.connect(netft_endpoint);
 
-        // TODO : Get/Set Force/Torque scale for device
-        // Force/Sclae is based on counts per force/torque value from device
-        // these value are manually read from device webserver, but in future they
-        // may be collected using http get requests
-        static constexpr double counts_per_force = 1000000;
-        static constexpr double counts_per_torque = 1000000;
-        force_scale_ = 1.0 / counts_per_force;
-        torque_scale_ = 1.0 / counts_per_torque;
+        // Read the calibration information
+        RCLCPP_INFO(get_logger(), "Reading NetFT Calibration");
+        if (!readCalibrationInformation(address))
+        {
+            throw std::runtime_error("TCP Request for calibration information failed");
+        }
 
         // Start receive thread
         recv_thread_ = boost::thread(&NetFTRDTDriver::recvThreadFunc, this);
@@ -194,6 +333,59 @@ namespace netft_rdt_driver {
         return got_new_data;
     }
 
+    bool NetFTRDTDriver::readCalibrationInformation(const std::string & address)
+    {
+        // Connect to socket
+        using boost::asio::ip::tcp;
+        tcp::socket calibration_socket(io_service_);
+        calibration_socket.connect( tcp::endpoint( boost::asio::ip::address::from_string(address), TCP_PORT ));
+
+        // Set up request
+        CalibrationInfoCommand info_request;
+        info_request.command_ = CalibrationInfoCommand::READCALINFO;
+        uint8_t buffer[CalibrationInfoCommand::CALIB_INFO_COMMAND_SIZE];
+        info_request.pack(buffer);
+
+        // Send request
+        boost::system::error_code error;
+        boost::asio::write( calibration_socket, boost::asio::buffer(buffer), error );
+        if( error ) {
+            RCLCPP_ERROR_STREAM(get_logger(), "Failed to send calibration info request: " << error.message());
+            return false;
+        }
+
+        uint8_t read_buffer[CalibrationInfoResponse::CALIB_INFO_RESPONSE_SIZE + 1];
+        const size_t len = calibration_socket.read_some(boost::asio::buffer(read_buffer, CalibrationInfoResponse::CALIB_INFO_RESPONSE_SIZE + 1));
+        if (len != CalibrationInfoResponse::CALIB_INFO_RESPONSE_SIZE)
+        {
+            RCLCPP_ERROR_STREAM(get_logger(), "Calibration response was length: " << len << ", but expected " << CalibrationInfoResponse::CALIB_INFO_RESPONSE_SIZE);
+            return false;
+        }
+        
+        // Unpack response
+        CalibrationInfoResponse calibration_info;
+        calibration_info.unpack(read_buffer);
+
+        // Check the info and use it
+        force_scale_ = 1.0 / calibration_info.counts_per_force_;
+        torque_scale_ = 1.0 / calibration_info.counts_per_torque_;
+
+        if (calibration_info.force_units_ == CalibrationInfoResponse::FORCE_UNIT_NEWTON)
+        {
+            RCLCPP_INFO_STREAM(get_logger(), "Read " << calibration_info.counts_per_force_ << " counts per force, with units Newtons");
+        } else {
+            RCLCPP_WARN_STREAM(get_logger(), "Expected calibration to have units Newtons, got: " << calibration_info.getForceUnitString() << ". Publishing non-SI units");
+        }
+
+        if (calibration_info.torque_units_ == CalibrationInfoResponse::TORQUE_UNIT_NEWTON_METER)
+        {
+            RCLCPP_INFO_STREAM(get_logger(), "Read " << calibration_info.counts_per_torque_ << " counts per torque, with units Newton-Meters");
+        } else {
+            RCLCPP_WARN_STREAM(get_logger(), "Expected calibration to have units Newton-Meters, got: " << calibration_info.getTorqueUnitString() << ". Publishing non-SI units");
+        }
+
+        return true;
+    }
 
     void NetFTRDTDriver::startStreaming(void) {
         // Command NetFT to start data transmission
