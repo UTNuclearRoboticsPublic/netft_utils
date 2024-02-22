@@ -126,7 +126,19 @@ void RDTCommand::pack(uint8_t *buffer) const
 
 
 NetFTRDTDriver::NetFTRDTDriver(const std::string &address) :
+  NetFTRDTDriver(address,
+                 "base_link",  // defaulting frame_id to "base_link"
+                 1000000, // defaulting counts_per_force to 1000000
+                 1000000) // defaulting counts_per_torque to 1000000
+{
+}
+
+NetFTRDTDriver::NetFTRDTDriver(const std::string &address,
+                               const std::string &frame_id,
+                               const int32_t counts_per_force,
+                               const int32_t counts_per_torque) :
   address_(address),
+  frame_id_(frame_id),
   socket_(io_service_),
   stop_recv_thread_(false),
   recv_thread_running_(false),
@@ -148,10 +160,8 @@ NetFTRDTDriver::NetFTRDTDriver(const std::string &address) :
   // Force/Sclae is based on counts per force/torque value from device
   // these value are manually read from device webserver, but in future they 
   // may be collected using http get requests
-  static const double counts_per_force = 1000000;  
-  static const double counts_per_torque = 1000000;
-  force_scale_ = 1.0 / counts_per_force;
-  torque_scale_ = 1.0 / counts_per_torque;
+  force_scale_ = 1.0 / (double)counts_per_force;
+  torque_scale_ = 1.0 / (double)counts_per_torque;
 
   // Start receive thread  
   recv_thread_ = boost::thread(&NetFTRDTDriver::recvThreadFunc, this);
@@ -256,7 +266,7 @@ void NetFTRDTDriver::recvThreadFunc()
         {
           tmp_data.header.seq = seq_counter_++;
           tmp_data.header.stamp = ros::Time::now();
-          tmp_data.header.frame_id = "base_link";
+          tmp_data.header.frame_id = frame_id_;
           tmp_data.wrench.force.x = double(rdt_record.fx_) * force_scale_;
           tmp_data.wrench.force.y = double(rdt_record.fy_) * force_scale_;
           tmp_data.wrench.force.z = double(rdt_record.fz_) * force_scale_;
