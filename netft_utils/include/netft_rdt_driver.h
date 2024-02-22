@@ -53,7 +53,7 @@ class NetFTRDTDriver : public rclcpp::Node
 {
 public:
   // Start receiving data from NetFT device
-  explicit NetFTRDTDriver(const std::string &address);
+  explicit NetFTRDTDriver(const std::string &address, const std::string &frame_id = "base_link");
 
   ~NetFTRDTDriver() override;
 
@@ -85,6 +85,7 @@ protected:
     TCP_PORT=49151
   };
   std::string address_;
+  std::string frame_id_;
 
   boost::asio::io_service io_service_;
   boost::asio::ip::udp::socket socket_;

@@ -258,19 +258,20 @@ namespace netft_rdt_driver {
         }
     }
 
-    NetFTRDTDriver::NetFTRDTDriver(const std::string& address) : Node("netft_rdt_driver"),
-                                                                 address_(address),
-                                                                 socket_(io_service_),
-                                                                 stop_recv_thread_(false),
-                                                                 recv_thread_running_(false),
-                                                                 packet_count_(0),
-                                                                 lost_packets_(0),
-                                                                 out_of_order_count_(0),
-                                                                 seq_counter_(0),
-                                                                 diag_packet_count_(0),
-                                                                 last_diag_pub_time_(rclcpp::Clock().now()),
-                                                                 last_rdt_sequence_(0),
-                                                                 system_status_(0) {
+    NetFTRDTDriver::NetFTRDTDriver(const std::string& address, const std::string &frame_id) : Node("netft_rdt_driver"),
+                                    address_(address),
+                                    frame_id_(frame_id),
+                                    socket_(io_service_),
+                                    stop_recv_thread_(false),
+                                    recv_thread_running_(false),
+                                    packet_count_(0),
+                                    lost_packets_(0),
+                                    out_of_order_count_(0),
+                                    seq_counter_(0),
+                                    diag_packet_count_(0),
+                                    last_diag_pub_time_(rclcpp::Clock().now()),
+                                    last_rdt_sequence_(0),
+                                    system_status_(0) {
         // Construct UDP socket
         const udp::endpoint netft_endpoint(boost::asio::ip::address_v4::from_string(address), RDT_PORT);
         socket_.open(udp::v4());
@@ -427,7 +428,7 @@ namespace netft_rdt_driver {
                     }
                     else {
                         tmp_data.header.stamp = rclcpp::Clock().now();
-                        tmp_data.header.frame_id = "base_link";
+                        tmp_data.header.frame_id = frame_id_;
                         tmp_data.wrench.force.x = static_cast<double>(rdt_record.fx_) * force_scale_;
                         tmp_data.wrench.force.y = static_cast<double>(rdt_record.fy_) * force_scale_;
                         tmp_data.wrench.force.z = static_cast<double>(rdt_record.fz_) * force_scale_;
