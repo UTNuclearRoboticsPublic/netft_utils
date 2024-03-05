@@ -1,7 +1,0 @@
-<launch>
-  
-  <node name="netft_node" pkg="netft_rdt_driver" type="netft_node" respawn="false" output="screen" args="192.168.1.84"/>
-
-  <node name="netft_force_utils" pkg="netft_utils" type="netft_utils" respawn="false" output="screen" args="/base_link /ft_sensor"  />
-
-</launch>

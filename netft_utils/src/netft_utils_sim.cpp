@@ -14,10 +14,10 @@ THIS SOFTWARE IS PROVIDED BY LOS ALAMOS NATIONAL SECURITY, LLC AND CONTRIBUTORS 
 Author: Alex von Sternberg
 */
 
-#include "ros/ros.h"
-#include "geometry_msgs/WrenchStamped.h"
-#include "netft_utils/StartSim.h"
-#include "netft_utils/StopSim.h"
+#include <rclcpp/rclcpp.hpp>
+#include <geometry_msgs/msg/wrench_stamped.hpp>
+#include <netft_interfaces/srv/start_sim.hpp>
+#include <netft_interfaces/srv/stop_sim.hpp>
 #include <math.h>
 
 /**
@@ -39,7 +39,7 @@ enum Dim   {DIM_X      = 0,
             DIM_RY     = 4,
             DIM_RZ     = 5};
 
-geometry_msgs::WrenchStamped simWrench;        // Wrench containing the simulated data
+geometry_msgs::msg::WrenchStamped simWrench;        // Wrench containing the simulated data
 bool toSim = false;                            // True if we should output simulated data
 SimType simType;                               // Defines the simulation profile type
 Dim simDim;                                    // Dimension to simulate FT in
@@ -58,12 +58,13 @@ void setWrench(double x, double y, double z, double rx, double ry, double rz)
   simWrench.wrench.torque.z = rz;
 }
 
-void simData()
+void simData(rclcpp::Node &n)
 {
   if(toSim)
   {
     double ft = 0.0;
-    double deltaT = ros::Time::now().toSec() - simStart;
+    rclcpp::Clock clock;
+    double deltaT = clock.now().seconds() - simStart;
     switch (simType)
     {
       case TYPE_ZEROS:
@@ -106,7 +107,7 @@ void simData()
       }
         break;
       default:
-        ROS_ERROR("Sim type invalid. Stopping sim.");
+        RCLCPP_ERROR(n.get_logger(), "Sim type invalid. Stopping sim.");
         toSim = false;
         break;
     }
@@ -131,7 +132,7 @@ void simData()
         setWrench(0.0, 0.0, 0.0, 0.0, 0.0, ft);
         break;
       default:
-        ROS_ERROR("Dimension invalid. Stopping sim.");
+        RCLCPP_ERROR(n.get_logger(), "Dimension invalid. Stopping sim.");
         toSim = false;
         break;
     }
@@ -143,18 +144,19 @@ void simData()
   }
 }                 
                   
-bool startSim(netft_utils::StartSim::Request &req, netft_utils::StartSim::Response &res)
+bool startSim(netft_interfaces::srv::StartSim::Request &req, netft_interfaces::srv::StartSim::Response &res)
 {  
-  simStart = ros::Time::now().toSec();
-  simDim = (Dim)req.simDim;
-  simType = (SimType)req.simType;
-  simSlope = req.simSlope;              
-  maxForce = req.maxForce;
+  rclcpp::Clock clock;
+  simStart = clock.now().seconds();
+  simDim = (Dim)req.dim;
+  simType = (SimType)req.type;
+  simSlope = req.slope;              
+  maxForce = req.force;
   toSim = true;
   return true;
 }  
 
-bool stopSim(netft_utils::StopSim::Request &req, netft_utils::StopSim::Response &res)
+bool stopSim(netft_interfaces::srv::StopSim::Request &req, netft_interfaces::srv::StopSim::Response &res)
 { 
   toSim = false;                
   return true;    
@@ -163,32 +165,32 @@ bool stopSim(netft_utils::StopSim::Request &req, netft_utils::StopSim::Response 
 int main(int argc, char **argv)
 {                 
   //Node name     
-  ros::init(argc, argv, "netft_utils_sim");
+  rclcpp::init(argc, argv);
   
   //Access main ROS system
-  ros::NodeHandle n;
+  rclcpp::Node n ("netft_utils_sim");
                   
   //Publish on the /netft_transformed_data topic. Queue up to 100000 data points
-  ros::Publisher netft_data_pub = n.advertise<geometry_msgs::WrenchStamped>("netft_data", 100000);
+  rclcpp::Publisher<geometry_msgs::msg::WrenchStamped>::SharedPtr netft_data_pub = n.create_publisher<geometry_msgs::msg::WrenchStamped>("netft_data", 100000);
   
   //Advertise bias and threshold services
-  ros::ServiceServer start_service = n.advertiseService("start_sim", startSim);
-  ros::ServiceServer stop_service = n.advertiseService("stop_sim", stopSim);
+  rclcpp::Service<netft_interfaces::srv::StartSim>::SharedPtr start_service = n.create_service<netft_interfaces::srv::StartSim>("start_sim", &startSim);
+  rclcpp::Service<netft_interfaces::srv::StopSim>::SharedPtr stop_service = n.create_service<netft_interfaces::srv::StopSim>("stop_sim", &stopSim);
   
-  ros::Rate loop_rate(400);
+  rclcpp::Rate loop_rate(400);
 
   //Initialize variables
   upSlope = true;
   
-  while ( ros::ok() )
+  while ( rclcpp::ok() )
   {
-    simData();
+    simData(n);
     
     // Publish transformed dat
-    netft_data_pub.publish( simWrench );
+    netft_data_pub->publish( simWrench );
   
     loop_rate.sleep();		
-    ros::spinOnce();
+    rclcpp::spin_some(n.make_shared());
   }
   
   return 0;

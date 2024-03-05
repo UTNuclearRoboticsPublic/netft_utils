@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
-<package>
-  <name>netft_utils</name>
+<package format="3">
+  <name>netft_node</name>
   <version>1.0.1</version>
   <description>C++ class and ROS node for ATI force/torque sensors connected to a Netbox. Includes gravity compensation and transformations.</description>
 
@@ -14,19 +14,20 @@
 
   <license>See License.txt</license>
 
-  <buildtool_depend>catkin</buildtool_depend>
-  <build_depend>roscpp</build_depend>
-  <build_depend>message_generation</build_depend>
+  
+  <depend>rclcpp</depend>
+  <depend>netft_interfaces</depend>
   <build_depend>geometry_msgs</build_depend>
   <build_depend>diagnostic_updater</build_depend>
-  <build_depend>tf</build_depend>
-  <run_depend>roscpp</run_depend>
-  <run_depend>message_runtime</run_depend>
-  <run_depend>geometry_msgs</run_depend>
-  <run_depend>diagnostic_updater</run_depend>
-  <run_depend>tf</run_depend>
+  <build_depend>tf2</build_depend>
+  <build_depend>rosidl_default_generators</build_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>diagnostic_updater</exec_depend>
+  <exec_depend>tf2</exec_depend>
+  <exec_depend>rosidl_default_runtime</exec_depend>
 
+  <member_of_group>rosidl_interface_packages</member_of_group>
   <export>
-
+    <build_type>ament_cmake</build_type>
   </export>
 </package>

@@ -2,7 +2,7 @@
 #define LP_FILTER_H
 
 #include <vector>
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 #include <math.h>
 
 class LPFilter

@@ -1,4 +1,4 @@
 float64 mass
-float64 COM
+float64 com
 ---
 bool success

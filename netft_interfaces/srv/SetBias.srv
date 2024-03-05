@@ -1,0 +1,5 @@
+bool bias
+float64 force
+float64 torque
+---
+bool success

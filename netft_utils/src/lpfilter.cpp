@@ -28,7 +28,7 @@ LPFilter::LPFilter(double deltaT, double cutoffFrequency, int numElements):
   initialized = true;
   if(numElements<=0)
   {
-    ROS_ERROR_STREAM("LPFilter was passed invalid number of elements. Not filtering.");
+    RCLCPP_ERROR_STREAM("LPFilter was passed invalid number of elements. Not filtering.");
     initialized = false;
   }
   else
@@ -37,12 +37,12 @@ LPFilter::LPFilter(double deltaT, double cutoffFrequency, int numElements):
   }
   if(deltaT<=0)
   {
-    ROS_ERROR_STREAM("LPFilter was passed invalid deltaT. Not Filtering.");
+    RCLCPP_ERROR_STREAM("LPFilter was passed invalid deltaT. Not Filtering.");
     initialized = false;
   }
   if(cutoffFrequency <=0)
   {
-    ROS_ERROR_STREAM("LPFilter was passed invalid cuttoffFrequency. Not Filtering.");
+    RCLCPP_ERROR_STREAM("LPFilter was passed invalid cuttoffFrequency. Not Filtering.");
     initialized = false;
   }
   else
@@ -59,7 +59,7 @@ LPFilter::LPFilter(double deltaT, double cutoffFrequency, int numElements):
     in2.resize(noElements);
     out1.resize(noElements);
     out2.resize(noElements);
-    ROS_INFO_STREAM("cutoffFrequency: " << cutoffFrequency << ". omega_a: " << omega_a << ". den: " << den << ". a0: " << a0 << ". a1: " << a1 << ". a2: " << a2 << ". b1: " << b1 << ". b2: " << b2);
+    RCLCPP_INFO_STREAM("cutoffFrequency: " << cutoffFrequency << ". omega_a: " << omega_a << ". den: " << den << ". a0: " << a0 << ". a1: " << a1 << ". a2: " << a2 << ". b1: " << b1 << ". b2: " << b2);
   }
 }
   
@@ -67,12 +67,12 @@ bool LPFilter::update(std::vector<double> input, std::vector<double>& output)
 {
   if(!initialized)
   {
-    ROS_ERROR_STREAM("LPFilter was not initialized correctly. Not filtering data.");
+    RCLCPP_ERROR_STREAM("LPFilter was not initialized correctly. Not filtering data.");
     return false;
   }
   if(input.size() != in1.size() || output.size() != out1.size())
   {
-    ROS_ERROR_STREAM("LPFilter incorrect input or output size");
+    RCLCPP_ERROR_STREAM("LPFilter incorrect input or output size");
     return false;
   }
   for(int i=0; i<noElements; i++)
