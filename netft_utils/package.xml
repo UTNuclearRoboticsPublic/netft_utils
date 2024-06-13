@@ -15,7 +15,7 @@
 
   <url type="website">http://wiki.ros.org/netft_utils</url>
 
-  <license>See License.txt</license>
+  <license>BSD-3-Clause</license>
 
 
   <depend>rclcpp</depend>
