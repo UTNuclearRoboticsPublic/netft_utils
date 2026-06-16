@@ -297,7 +297,7 @@ NetFTRDTDriver::NetFTRDTDriver(const std::string & address, const std::string & 
   system_status_(0)
 {
   // Construct UDP socket
-  const udp::endpoint netft_endpoint(boost::asio::ip::address_v4::from_string(address), RDT_PORT);
+  const udp::endpoint netft_endpoint(boost::asio::ip::make_address(address), RDT_PORT);
   socket_.open(udp::v4());
   socket_.connect(netft_endpoint);
 
@@ -353,7 +353,7 @@ bool NetFTRDTDriver::readCalibrationInformation(const std::string & address)
   using boost::asio::ip::tcp;
   tcp::socket calibration_socket(io_service_);
   calibration_socket.connect(
-    tcp::endpoint(boost::asio::ip::address::from_string(address), TCP_PORT));
+    tcp::endpoint(boost::asio::ip::make_address(address), TCP_PORT));
 
   // Set up request
   CalibrationInfoCommand info_request;

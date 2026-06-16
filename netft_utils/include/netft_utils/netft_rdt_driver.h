@@ -85,7 +85,7 @@ protected:
   std::string address_;
   std::string frame_id_;
 
-  boost::asio::io_service io_service_;
+  boost::asio::io_context io_service_;
   boost::asio::ip::udp::socket socket_;
   boost::mutex mutex_;
   boost::thread recv_thread_;
